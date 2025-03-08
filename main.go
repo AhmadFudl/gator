@@ -8,11 +8,14 @@ import (
 	"github.com/ahmadfudl/gator/internal/config"
 	"github.com/ahmadfudl/gator/internal/database"
 	_ "github.com/lib/pq"
+	"github.com/pressly/goose/v3"
+	"github.com/pressly/goose/v3/lock"
 )
 
 type state struct {
-	cfg *config.Config
-	db  *database.Queries
+	cfg  *config.Config
+	db   *database.Queries
+	prov *goose.Provider
 }
 
 func main() {
@@ -28,12 +31,29 @@ func main() {
 		os.Exit(1)
 	}
 
+	fsys := os.DirFS("sql/schema/")
+	psqlock, err := lock.NewPostgresSessionLocker()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "gator: %v\n", err)
+		os.Exit(1)
+	}
+
+	provider, err := goose.NewProvider(goose.DialectPostgres, db, fsys, goose.WithSessionLocker(psqlock))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "gator: %v\n", err)
+		os.Exit(1)
+	}
+
 	dbqs := database.New(db)
-	s := state{cfg: cfg, db: dbqs}
+	s := state{cfg: cfg, db: dbqs, prov: provider}
 
 	c := commands{
 		make(map[string]handler),
 	}
+	c.register("migrate", handler{
+		d: "migrates db",
+		f: _migrate,
+	})
 	c.register("login", handler{
 		d: "set the current user",
 		f: _login,

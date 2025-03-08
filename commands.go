@@ -43,6 +43,36 @@ func (c *commands) run(s *state, cmd command) error {
 	}
 }
 
+func _migrate(s *state, cmd command) error {
+	command := "up"
+	if len(cmd.args) > 1 {
+		return fmt.Errorf(`fatal: You must provide only a command for %s.
+
+Usage: gator %[1]s [<up> | <reset>]`,
+			cmd.name)
+	} else if len(cmd.args) == 1 {
+		if cmd.args[0] != "up" && cmd.args[0] != "reset" {
+			return fmt.Errorf(`fatal: Unknow command '%s'.
+
+Usage: gator %s [<up> | <reset>]`,
+				cmd.args[0], cmd.name)
+		}
+		command = cmd.args[0]
+	}
+
+	var err error
+	if command == "up" {
+		_, err = s.prov.Up(context.Background())
+	} else {
+		_, err = s.prov.DownTo(context.Background(), 0)
+	}
+	if err != nil {
+		return fmt.Errorf("gator: %v", err)
+	}
+
+	return nil
+}
+
 func _login(s *state, cmd command) error {
 	if len(cmd.args) > 1 {
 		return fmt.Errorf(`fatal: You must provide only a username for %s.
