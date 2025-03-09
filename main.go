@@ -2,8 +2,11 @@ package main
 
 import (
 	"database/sql"
+	"embed"
 	"fmt"
+	"io/fs"
 	"os"
+	"path/filepath"
 
 	"github.com/ahmadfudl/gator/internal/config"
 	"github.com/ahmadfudl/gator/internal/database"
@@ -18,6 +21,9 @@ type state struct {
 	prov *goose.Provider
 }
 
+//go:embed sql/schema/*.sql
+var migrations embed.FS
+
 func main() {
 	cfg, err := config.Read()
 	if err != nil {
@@ -31,12 +37,44 @@ func main() {
 		os.Exit(1)
 	}
 
-	fsys := os.DirFS("sql/schema/")
 	psqlock, err := lock.NewPostgresSessionLocker()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "gator: %v\n", err)
 		os.Exit(1)
 	}
+
+	tempdir, err := os.MkdirTemp("", "gator-migrations")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "gator: %v\n", err)
+		os.Exit(1)
+	}
+	defer os.RemoveAll(tempdir)
+
+	err = fs.WalkDir(migrations, "sql/schema", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if d.IsDir() {
+			return nil
+		}
+
+		data, err := migrations.ReadFile(path)
+		if err != nil {
+			return err
+		}
+
+		_, filename := filepath.Split(path)
+
+		outpath := filepath.Join(tempdir, filename)
+		return os.WriteFile(outpath, data, 0666)
+	})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "gator: %v\n", err)
+		os.Exit(1)
+	}
+
+	fsys := os.DirFS(tempdir)
 
 	provider, err := goose.NewProvider(goose.DialectPostgres, db, fsys, goose.WithSessionLocker(psqlock))
 	if err != nil {
