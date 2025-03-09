@@ -132,7 +132,7 @@ Usage: gator %[1]s <username>`,
 		// error code for unique constraint vioaltion
 		// 23505 unique_violation
 		// https://www.postgresql.org/docs/9.3/errcodes-appendix.html
-		if err, ok := err.(*pq.Error); ok && err.Code.Class() == "23505" {
+		if err, ok := err.(*pq.Error); ok && err.Code == "23505" {
 			return fmt.Errorf(
 				"fatal: User '%s' is already registered.",
 				username)
@@ -275,7 +275,7 @@ Usage: gator login <username>`)
 		// error code for unique constraint vioaltion
 		// 23505 unique_violation
 		// https://www.postgresql.org/docs/9.3/errcodes-appendix.html
-		if err, ok := err.(*pq.Error); ok && err.Code.Class() == "23505" {
+		if err, ok := err.(*pq.Error); ok && err.Code == "23505" {
 			return fmt.Errorf("fatal: You can't follow the same feed twice.")
 		}
 		return fmt.Errorf("gator: %w", err)
@@ -362,7 +362,7 @@ Usage: gator addfeed <name> <url>`)
 		// error code for unique constraint vioaltion
 		// 23505 unique_violation
 		// https://www.postgresql.org/docs/9.3/errcodes-appendix.html
-		if err, ok := err.(*pq.Error); ok && err.Code.Class() == "23505" {
+		if err, ok := err.(*pq.Error); ok && err.Code == "23505" {
 			return fmt.Errorf("fatal: You can't follow the same feed twice.")
 		}
 		return fmt.Errorf("gator: %w", err)
